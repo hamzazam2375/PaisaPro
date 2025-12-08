@@ -6,36 +6,44 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 import json
-from .forms import SignUpForm, OTPVerificationForm, ResendOTPForm
-from .models import User, OTPVerification
+from .forms import (
+    SignUpForm,
+    OTPVerificationForm,
+    ResendOTPForm,
+    MonthlyIncomeForm,
+    ExpenseForm,
+    ProfileForm,
+    EmailChangeStartForm,
+    EmailChangeVerifyForm,
+    AddSavingsForm,
+    WithdrawSavingsForm,
+    AddMoneyForm,
+)
+from .models import User, OTPVerification, OtherExpenses
 from .email_service import OTPService
+from .chatbot_service import FinancialChatbotService
 
 
 def signup_view(request):
-    """Handle user signup - accounts are automatically active"""
+    """Handle user signup - users are active by default"""
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
-            # Create user and automatically activate account
-            user = form.save(commit=False)
-            user.is_active = True  # Automatically activate the account
-            user.save()
-            
-            # Create an Account instance for the new user (only if it doesn't exist)
-            from .models import Account
-            if not hasattr(user, 'account'):
-                Account.objects.create(user=user)
+            # Create user (form already sets is_active=True)
+            user = form.save()
             
             # Login the user
             login(request, user)
             messages.success(request, 'Account created successfully! Welcome to PaisaPro!')
-            return redirect('dashboard')
+            # Redirect to income setup after successful signup
+            return redirect('income_setup')
     else:
         form = SignUpForm()
     
     return render(request, 'sda_app/signup.html', {'form': form})
 
 
+@csrf_exempt
 @require_POST
 def send_otp_view(request):
     """Send OTP to email address"""
@@ -59,6 +67,7 @@ def send_otp_view(request):
         return JsonResponse({'success': False, 'message': str(e)})
 
 
+@csrf_exempt
 @require_POST
 def verify_otp_ajax_view(request):
     """Verify OTP via AJAX"""
@@ -106,7 +115,8 @@ def verify_otp_view(request, email):
             # Login the user
             login(request, user)
             messages.success(request, 'Email verified successfully! Welcome to PaisaPro!')
-            return redirect('dashboard')
+            # Redirect to income setup after successful verification
+            return redirect('income_setup')
     else:
         form = OTPVerificationForm(email=email)
     
@@ -151,6 +161,9 @@ def dashboard_view(request):
     """Dashboard view for logged-in users"""
     user = request.user
     account = user.account
+    # If income not set, nudge user to set it
+    if account.monthly_income == 0:
+        return redirect('income_setup')
     
     # Calculate financial metrics
     current_balance = account.current_balance
@@ -163,41 +176,34 @@ def dashboard_view(request):
     if monthly_income > 0:
         savings_rate = (savings / monthly_income) * 100
     
-    # Get recent transactions (mock data for now)
+    # Recent transactions from real data (expenses only for now)
+    expenses_qs = OtherExpenses.objects.filter(user=user).order_by('-date_timestamp')[:10]
     recent_transactions = [
         {
-            'description': 'Grocery Shopping',
-            'amount': -85.50,
-            'date': 'Today, 2:30 PM',
-            'type': 'expense'
-        },
-        {
-            'description': 'Salary Deposit',
-            'amount': 3500.00,
-            'date': 'Yesterday, 9:00 AM',
-            'type': 'income'
-        },
-        {
-            'description': 'Gas Station',
-            'amount': -45.20,
-            'date': 'Yesterday, 6:45 PM',
-            'type': 'expense'
-        },
-        {
-            'description': 'Netflix Subscription',
-            'amount': -15.99,
-            'date': '2 days ago',
-            'type': 'expense'
+            'description': e.description,
+            'amount': float(-e.amount),
+            'date': e.expense_date.strftime('%b %d, %Y'),
+            'type': 'expense',
+            'category': e.category,
         }
+        for e in expenses_qs
     ]
     
-    # Get expense breakdown (mock data for now)
+    # Expense breakdown from DB
+    categories = dict(OtherExpenses._meta.get_field('category').choices)
+    totals_by_category = {
+        key: float(sum(e.amount for e in OtherExpenses.objects.filter(user=user, category=key)))
+        for key in categories.keys()
+    }
+    grand_total = sum(totals_by_category.values()) or 1.0
     expense_breakdown = [
-        {'category': 'Food & Dining', 'amount': 450, 'percentage': 35},
-        {'category': 'Transportation', 'amount': 320, 'percentage': 25},
-        {'category': 'Entertainment', 'amount': 180, 'percentage': 20},
-        {'category': 'Utilities', 'amount': 150, 'percentage': 15},
-        {'category': 'Other', 'amount': 50, 'percentage': 5}
+        {
+            'category': categories[key],
+            'amount': round(totals_by_category[key], 2),
+            'percentage': round((totals_by_category[key] / grand_total) * 100, 2),
+        }
+        for key in categories.keys()
+        if totals_by_category[key] > 0
     ]
     
     # Get savings goals (mock data for now)
@@ -245,6 +251,177 @@ def dashboard_view(request):
     return render(request, 'sda_app/dashboard.html', context)
 
 
+@login_required
+def income_setup_view(request):
+    account = request.user.account
+    
+    # Check if user is skipping (coming from skip button)
+    if request.GET.get('skip') == 'true':
+        # Set a default income to prevent redirect loop
+        account.monthly_income = 1000.00  # Default income
+        # Only set balance equal to income if balance is currently 0
+        if account.current_balance == 0:
+            account.current_balance = account.monthly_income
+        account.save()
+        messages.info(request, 'Using default income. You can update it later in profile settings.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        form = MonthlyIncomeForm(request.POST, instance=account)
+        if form.is_valid():
+            form.save()
+            # Only set balance equal to income if balance is currently 0 (first time setup)
+            if account.current_balance == 0:
+                account.current_balance = account.monthly_income
+                account.save()
+            messages.success(request, 'Monthly income updated.')
+            return redirect('dashboard')
+    else:
+        form = MonthlyIncomeForm(instance=account)
+    return render(request, 'sda_app/income_setup.html', {'form': form})
+
+
+@login_required
+def add_expense_view(request):
+    if request.method == 'POST':
+        form = ExpenseForm(request.POST, user=request.user)
+        if form.is_valid():
+            expense = form.save(commit=False)
+            expense.user = request.user
+            expense.save()
+            # Update account totals and subtract expense from balance
+            account = request.user.account
+            account.update_total_expenses()
+            account.subtract_expense(expense.amount)
+            messages.success(request, 'Expense added successfully.')
+            return redirect('dashboard')
+    else:
+        form = ExpenseForm(user=request.user)
+    return render(request, 'sda_app/add_expense.html', {'form': form})
+
+
+@login_required
+def add_money_view(request):
+    """Add money to current balance (salary, investment, etc.)"""
+    if request.method == 'POST':
+        form = AddMoneyForm(request.POST)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            money_type = form.cleaned_data['money_type']
+            description = form.cleaned_data['description']
+            
+            account = request.user.account
+            account.current_balance += amount
+            account.save()
+            
+            type_display = dict(form.fields['money_type'].choices)[money_type]
+            messages.success(request, f'{type_display} of ${amount} added to your balance!')
+            return redirect('dashboard')
+    else:
+        form = AddMoneyForm()
+    return render(request, 'sda_app/add_money.html', {'form': form})
+
+
+@login_required
+def add_savings_view(request):
+    """Add money to savings"""
+    if request.method == 'POST':
+        form = AddSavingsForm(request.POST, user=request.user)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            add_all = form.cleaned_data['add_all']
+            
+            account = request.user.account
+            
+            if add_all:
+                amount = account.current_balance
+            
+            if account.add_to_savings(amount):
+                messages.success(request, f'${amount} added to savings!')
+            else:
+                messages.error(request, f'Cannot add ${amount} to savings. Current balance: ${account.current_balance}')
+            return redirect('dashboard')
+    else:
+        form = AddSavingsForm(user=request.user)
+    return render(request, 'sda_app/add_savings.html', {'form': form})
+
+
+@login_required
+def withdraw_savings_view(request):
+    """Withdraw money from savings"""
+    if request.method == 'POST':
+        form = WithdrawSavingsForm(request.POST, user=request.user)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            
+            account = request.user.account
+            
+            if account.withdraw_from_savings(amount):
+                messages.success(request, f'${amount} withdrawn from savings!')
+            else:
+                messages.error(request, f'Cannot withdraw ${amount} from savings. Available savings: ${account.savings}')
+            return redirect('dashboard')
+    else:
+        form = WithdrawSavingsForm(user=request.user)
+    return render(request, 'sda_app/withdraw_savings.html', {'form': form})
+
+
+@login_required
+def profile_settings_view(request):
+    user = request.user
+    if request.method == 'POST':
+        form = ProfileForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile updated successfully.')
+            return redirect('profile_settings')
+    else:
+        form = ProfileForm(instance=user)
+    return render(request, 'sda_app/profile_settings.html', {'form': form, 'email': user.email})
+
+
+@login_required
+def email_change_start_view(request):
+    if request.method == 'POST':
+        form = EmailChangeStartForm(request.POST)
+        if form.is_valid():
+            new_email = form.cleaned_data['new_email']
+            otp = OTPVerification.create_otp(new_email)
+            success, message = OTPService.send_otp_email(new_email, otp.otp_code)
+            if success:
+                messages.success(request, 'Verification code sent to new email.')
+                return redirect('email_change_verify', email=new_email)
+            messages.error(request, f'Failed to send verification code: {message}')
+    else:
+        form = EmailChangeStartForm()
+    return render(request, 'sda_app/email_change_start.html', {'form': form})
+
+
+@login_required
+def email_change_verify_view(request, email):
+    if request.method == 'POST':
+        form = EmailChangeVerifyForm(request.POST)
+        if form.is_valid():
+            otp_code = form.cleaned_data['otp_code']
+            try:
+                otp_obj = OTPVerification.objects.filter(email=email, is_verified=False).latest('created_at')
+            except OTPVerification.DoesNotExist:
+                messages.error(request, 'No valid OTP found for this email.')
+                return redirect('email_change_start')
+
+            is_valid, message = otp_obj.verify(otp_code)
+            if is_valid:
+                user = request.user
+                user.email = email
+                user.save()
+                messages.success(request, 'Email updated successfully.')
+                return redirect('profile_settings')
+            messages.error(request, message)
+    else:
+        form = EmailChangeVerifyForm(initial={'email': email})
+    return render(request, 'sda_app/email_change_verify.html', {'form': form, 'email': email})
+
+
 def login_view(request):
     """Handle user login"""
     if request.method == 'POST':
@@ -258,6 +435,9 @@ def login_view(request):
                 if user.is_active:
                     login(request, user)
                     messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+                    # Nudge income setup if not set
+                    if user.account.monthly_income == 0:
+                        return redirect('income_setup')
                     return redirect('dashboard')
                 else:
                     messages.error(request, 'Your account is inactive. Please contact support.')
@@ -276,6 +456,29 @@ def login_view(request):
             messages.error(request, 'Please fill in all fields.')
     
     return render(request, 'sda_app/login.html')
+
+
+@login_required
+def financial_chatbot_view(request):
+    """Financial advisor chatbot endpoint"""
+    if request.method == 'GET':
+        message = request.GET.get('message', '').strip()
+        if not message:
+            return JsonResponse({'response': 'Please ask me a financial question!'})
+        
+        chatbot = FinancialChatbotService()
+        response = chatbot.generate_response(message, request.user)
+        return JsonResponse({'response': response})
+    
+    return JsonResponse({'response': 'Invalid request method'})
+
+
+@login_required
+def chatbot_tips_view(request):
+    """Get personalized financial tips"""
+    chatbot = FinancialChatbotService()
+    tips = chatbot.get_quick_tips(request.user)
+    return JsonResponse({'tips': tips})
 
 
 def home_view(request):

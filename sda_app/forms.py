@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Account, OTPVerification
+from .models import User, Account, OTPVerification, OtherExpenses
 
 
 class SignUpForm(UserCreationForm):
@@ -61,7 +61,7 @@ class SignUpForm(UserCreationForm):
         user.email = self.cleaned_data['email']
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
-        user.is_active = False  # User will be activated after OTP verification
+        user.is_active = True  # Users are now active by default
         
         if commit:
             user.save()
@@ -122,4 +122,128 @@ class ResendOTPForm(forms.Form):
             'placeholder': 'Enter your email',
             'readonly': True
         })
+    )
+
+
+class MonthlyIncomeForm(forms.ModelForm):
+    class Meta:
+        model = Account
+        fields = ['monthly_income']
+        widgets = {
+            'monthly_income': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'})
+        }
+
+
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = OtherExpenses
+        fields = ['amount', 'category', 'description', 'expense_date']
+        widgets = {
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'expense_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+        }
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        if self.user and hasattr(self.user, 'account'):
+            if amount > self.user.account.current_balance:
+                raise forms.ValidationError(f"Expense amount (${amount}) cannot be greater than current balance (${self.user.account.current_balance})")
+        return amount
+
+
+class ProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'username']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'username': forms.TextInput(attrs={'class': 'form-control'})
+        }
+
+
+class EmailChangeStartForm(forms.Form):
+    new_email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
+
+
+class EmailChangeVerifyForm(forms.Form):
+    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control', 'readonly': True}))
+    otp_code = forms.CharField(
+        max_length=6,
+        widget=forms.TextInput(attrs={'class': 'form-control text-center', 'maxlength': '6'})
+    )
+
+
+class AddSavingsForm(forms.Form):
+    amount = forms.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'})
+    )
+    add_all = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        add_all = self.cleaned_data.get('add_all', False)
+        
+        if self.user and hasattr(self.user, 'account'):
+            if add_all:
+                # If add_all is checked, amount will be set to current balance in view
+                return amount
+            elif amount > self.user.account.current_balance:
+                raise forms.ValidationError(f"Amount (${amount}) cannot be greater than current balance (${self.user.account.current_balance})")
+        return amount
+
+
+class WithdrawSavingsForm(forms.Form):
+    amount = forms.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'})
+    )
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        if self.user and hasattr(self.user, 'account'):
+            if amount > self.user.account.savings:
+                raise forms.ValidationError(f"Withdrawal amount (${amount}) cannot be greater than available savings (${self.user.account.savings})")
+        return amount
+
+
+class AddMoneyForm(forms.Form):
+    amount = forms.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'})
+    )
+    money_type = forms.ChoiceField(
+        choices=[
+            ('salary', 'Salary'),
+            ('investment', 'Investment'),
+            ('bonus', 'Bonus'),
+            ('other', 'Other Income'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    description = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional description'})
     )

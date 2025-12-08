@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,7 +35,8 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'hamzaazam2375@gmail.com'  # Your Gmail
 EMAIL_HOST_PASSWORD = 'eycn rekv veek ffpw'  # Your Gmail app password
-DEFAULT_FROM_EMAIL = 'PaisaPro <hamzaazam2375@gmail.com>'
+# OpenAI Configuration
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')  # Set your OpenAI API key in environment variables
 
 
 # Quick-start development settings - unsuitable for production

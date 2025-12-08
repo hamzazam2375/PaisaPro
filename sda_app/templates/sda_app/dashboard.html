@@ -115,6 +115,11 @@
                     <div class="flex-grow-1">
                         <div class="metric-value text-primary">${{ account.current_balance|floatformat:2 }}</div>
                         <div class="metric-label">Current Balance</div>
+                        <div class="mt-2">
+                            <a href="{% url 'add_money' %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-plus"></i> Add Money
+                            </a>
+                        </div>
                     </div>
                     <div class="text-primary">
                         <i class="fas fa-wallet fa-2x"></i>
@@ -154,6 +159,14 @@
                     <div class="flex-grow-1">
                         <div class="metric-value text-info">${{ account.savings|floatformat:2 }}</div>
                         <div class="metric-label">Savings</div>
+                        <div class="mt-2">
+                            <a href="{% url 'add_savings' %}" class="btn btn-sm btn-outline-success me-1">
+                                <i class="fas fa-plus"></i> Add
+                            </a>
+                            <a href="{% url 'withdraw_savings' %}" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-minus"></i> Withdraw
+                            </a>
+                        </div>
                     </div>
                     <div class="text-info">
                         <i class="fas fa-piggy-bank fa-2x"></i>
@@ -171,14 +184,14 @@
                 <h5 class="mb-3"><i class="fas fa-bolt text-warning"></i> Quick Actions</h5>
                 <div class="row">
                     <div class="col-md-4 mb-2">
-                        <button class="btn quick-action-btn w-100">
+                        <a class="btn quick-action-btn w-100" href="{% url 'add_expense' %}">
                             <i class="fas fa-plus me-2"></i>Add Expense
-                        </button>
+                        </a>
                     </div>
                     <div class="col-md-4 mb-2">
-                        <button class="btn quick-action-btn w-100">
-                            <i class="fas fa-money-bill-wave me-2"></i>Add Income
-                        </button>
+                        <a class="btn quick-action-btn w-100" href="{% url 'income_setup' %}">
+                            <i class="fas fa-money-bill-wave me-2"></i>Set Income
+                        </a>
                     </div>
                     <div class="col-md-4 mb-2">
                         <button class="btn quick-action-btn w-100">
@@ -193,9 +206,9 @@
                         </button>
                     </div>
                     <div class="col-md-4 mb-2">
-                        <button class="btn quick-action-btn w-100">
-                            <i class="fas fa-target me-2"></i>Set Goals
-                        </button>
+                        <a class="btn quick-action-btn w-100" href="{% url 'profile_settings' %}">
+                            <i class="fas fa-user-cog me-2"></i>Profile Settings
+                        </a>
                     </div>
                     <div class="col-md-4 mb-2">
                         <button class="btn quick-action-btn w-100">
@@ -243,21 +256,31 @@
             <!-- AI Financial Advisor Chatbot -->
             <div class="chatbot-container mb-4">
                 <h5 class="mb-3"><i class="fas fa-robot"></i> AI Financial Advisor</h5>
-                <p class="mb-3">Get personalized financial advice and insights from our AI assistant.</p>
+                <p class="mb-3">Get personalized financial advice based on your data.</p>
 
-                <div class="chatbot-placeholder">
-                    <i class="fas fa-comments fa-3x mb-3"></i>
-                    <h6>Chatbot Coming Soon!</h6>
-                    <p class="mb-0">Our AI financial advisor will help you with:</p>
-                    <ul class="list-unstyled mt-2">
-                        <li>• Budget optimization</li>
-                        <li>• Investment advice</li>
-                        <li>• Expense analysis</li>
-                        <li>• Financial goal setting</li>
-                    </ul>
-                    <button class="btn btn-light mt-3" disabled>
-                        <i class="fas fa-comment-dots me-2"></i>Start Chat
-                    </button>
+                <!-- Chat Interface -->
+                <div class="chat-interface">
+                    <div id="chat-messages" class="chat-messages mb-3"
+                        style="height: 200px; overflow-y: auto; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px;">
+                        <div class="chat-message bot-message">
+                            <strong>🤖 Financial Advisor:</strong> Hello! I'm here to help with your financial
+                            questions. Ask me about saving money, budgeting, or investment advice!
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <input type="text" id="chat-input" class="form-control"
+                            placeholder="Ask about savings, budgeting, investments..." maxlength="500">
+                        <button class="btn btn-light" id="send-chat" onclick="sendMessage()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-light" onclick="getQuickTips()">
+                            <i class="fas fa-lightbulb"></i> Get Quick Tips
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -315,6 +338,89 @@
                 }
             }, 30);
         });
+
+        // Chatbot functionality
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput) {
+            chatInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        }
     });
+
+    function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+
+        if (!message) return;
+
+        // Add user message to chat
+        addMessageToChat('user', message);
+        input.value = '';
+
+        // Show loading
+        addMessageToChat('bot', '🤖 Thinking...');
+
+        // Send to backend
+        fetch(`{% url 'financial_chatbot' %}?message=${encodeURIComponent(message)}`)
+            .then(response => response.json())
+            .then(data => {
+                // Remove loading message
+                const chatMessages = document.getElementById('chat-messages');
+                const loadingMessage = chatMessages.lastElementChild;
+                if (loadingMessage && loadingMessage.textContent.includes('Thinking...')) {
+                    loadingMessage.remove();
+                }
+
+                // Add bot response
+                addMessageToChat('bot', data.response);
+            })
+            .catch(error => {
+                // Remove loading message
+                const chatMessages = document.getElementById('chat-messages');
+                const loadingMessage = chatMessages.lastElementChild;
+                if (loadingMessage && loadingMessage.textContent.includes('Thinking...')) {
+                    loadingMessage.remove();
+                }
+
+                addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
+            });
+    }
+
+    function addMessageToChat(sender, message) {
+        const chatMessages = document.getElementById('chat-messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${sender}-message mb-2`;
+
+        if (sender === 'user') {
+            messageDiv.innerHTML = `<strong>👤 You:</strong> ${message}`;
+            messageDiv.style.textAlign = 'right';
+            messageDiv.style.color = '#e3f2fd';
+        } else {
+            messageDiv.innerHTML = `<strong>🤖 Financial Advisor:</strong> ${message}`;
+            messageDiv.style.textAlign = 'left';
+            messageDiv.style.color = '#f3e5f5';
+        }
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function getQuickTips() {
+        fetch('{% url "chatbot_tips" %}')
+            .then(response => response.json())
+            .then(data => {
+                let tipsMessage = 'Here are some personalized financial tips for you:\n\n';
+                data.tips.forEach((tip, index) => {
+                    tipsMessage += `${index + 1}. ${tip}\n`;
+                });
+                addMessageToChat('bot', tipsMessage);
+            })
+            .catch(error => {
+                addMessageToChat('bot', 'Sorry, I couldn\'t get tips right now. Please try again.');
+            });
+    }
 </script>
 {% endblock %}

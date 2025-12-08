@@ -41,6 +41,41 @@ class Account(models.Model):
         self.total_expenses = other_expenses + shopping_expenses
         self.save()
     
+    def update_current_balance(self):
+        """Update current balance by subtracting new expenses"""
+        # Don't recalculate from income, just update expenses total
+        self.update_total_expenses()
+        # Current balance should only decrease when expenses are added
+        # It should not be recalculated from income - expenses
+    
+    def add_salary(self):
+        """Add monthly income to current balance"""
+        self.current_balance += self.monthly_income
+        self.save()
+    
+    def subtract_expense(self, expense_amount):
+        """Subtract expense amount from current balance"""
+        self.current_balance -= expense_amount
+        self.save()
+    
+    def add_to_savings(self, amount):
+        """Add amount to savings and subtract from current balance"""
+        if amount <= self.current_balance:
+            self.savings += amount
+            self.current_balance -= amount
+            self.save()
+            return True
+        return False
+    
+    def withdraw_from_savings(self, amount):
+        """Withdraw amount from savings and add to current balance"""
+        if amount <= self.savings:
+            self.savings -= amount
+            self.current_balance += amount
+            self.save()
+            return True
+        return False
+    
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username}'s Account"
 
@@ -70,6 +105,8 @@ class Expense(models.Model):
 class OtherExpenses(Expense):
     """Other expenses subclass of Expense"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='other_expenses')
+    # User-provided date for the expense entry; differs from created timestamp
+    expense_date = models.DateField(default=timezone.now)
     category = models.CharField(max_length=50, choices=[
         ('food', 'Food'),
         ('transportation', 'Transportation'),

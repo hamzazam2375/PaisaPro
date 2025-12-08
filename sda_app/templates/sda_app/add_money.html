@@ -1,0 +1,16 @@
+{% extends 'sda_app/base.html' %}
+
+{% block title %}Add Money - PaisaPro{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h3 class="mb-3">Add Money to Balance</h3>
+    <p class="text-muted">Add money from salary, investment, bonus, or other sources.</p>
+    <form method="post" class="card p-3">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Add Money</button>
+        <a href="{% url 'dashboard' %}" class="btn btn-link">Cancel</a>
+    </form>
+</div>
+{% endblock %}
