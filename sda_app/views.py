@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login
+from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -12,36 +12,30 @@ from .email_service import OTPService
 
 
 def signup_view(request):
-    """Handle user signup with email verification"""
+    """Handle user signup - accounts are automatically active"""
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
-            # Check if email is verified
-            email = form.cleaned_data['email']
-            try:
-                otp_obj = OTPVerification.objects.filter(email=email, is_verified=True).latest('created_at')
-                if otp_obj.is_verified:
-                    user = form.save()
-                    # Create an Account instance for the new user (only if it doesn't exist)
-                    from .models import Account
-                    if not hasattr(user, 'account'):
-                        Account.objects.create(user=user)
-                    
-                    # Login the user
-                    login(request, user)
-                    messages.success(request, 'Account created successfully! Welcome to PaisaPro!')
-                    return redirect('dashboard')
-                else:
-                    messages.error(request, 'Please verify your email first.')
-            except OTPVerification.DoesNotExist:
-                messages.error(request, 'Please verify your email first.')
+            # Create user and automatically activate account
+            user = form.save(commit=False)
+            user.is_active = True  # Automatically activate the account
+            user.save()
+            
+            # Create an Account instance for the new user (only if it doesn't exist)
+            from .models import Account
+            if not hasattr(user, 'account'):
+                Account.objects.create(user=user)
+            
+            # Login the user
+            login(request, user)
+            messages.success(request, 'Account created successfully! Welcome to PaisaPro!')
+            return redirect('dashboard')
     else:
         form = SignUpForm()
     
     return render(request, 'sda_app/signup.html', {'form': form})
 
 
-@csrf_exempt
 @require_POST
 def send_otp_view(request):
     """Send OTP to email address"""
@@ -65,7 +59,6 @@ def send_otp_view(request):
         return JsonResponse({'success': False, 'message': str(e)})
 
 
-@csrf_exempt
 @require_POST
 def verify_otp_ajax_view(request):
     """Verify OTP via AJAX"""
@@ -159,11 +152,130 @@ def dashboard_view(request):
     user = request.user
     account = user.account
     
+    # Calculate financial metrics
+    current_balance = account.current_balance
+    monthly_income = account.monthly_income
+    total_expenses = account.total_expenses
+    savings = account.savings
+    
+    # Calculate savings rate
+    savings_rate = 0
+    if monthly_income > 0:
+        savings_rate = (savings / monthly_income) * 100
+    
+    # Get recent transactions (mock data for now)
+    recent_transactions = [
+        {
+            'description': 'Grocery Shopping',
+            'amount': -85.50,
+            'date': 'Today, 2:30 PM',
+            'type': 'expense'
+        },
+        {
+            'description': 'Salary Deposit',
+            'amount': 3500.00,
+            'date': 'Yesterday, 9:00 AM',
+            'type': 'income'
+        },
+        {
+            'description': 'Gas Station',
+            'amount': -45.20,
+            'date': 'Yesterday, 6:45 PM',
+            'type': 'expense'
+        },
+        {
+            'description': 'Netflix Subscription',
+            'amount': -15.99,
+            'date': '2 days ago',
+            'type': 'expense'
+        }
+    ]
+    
+    # Get expense breakdown (mock data for now)
+    expense_breakdown = [
+        {'category': 'Food & Dining', 'amount': 450, 'percentage': 35},
+        {'category': 'Transportation', 'amount': 320, 'percentage': 25},
+        {'category': 'Entertainment', 'amount': 180, 'percentage': 20},
+        {'category': 'Utilities', 'amount': 150, 'percentage': 15},
+        {'category': 'Other', 'amount': 50, 'percentage': 5}
+    ]
+    
+    # Get savings goals (mock data for now)
+    savings_goals = [
+        {'name': 'Emergency Fund', 'current': 2500, 'target': 5000, 'percentage': 50},
+        {'name': 'Vacation Fund', 'current': 800, 'target': 2000, 'percentage': 40},
+        {'name': 'New Car', 'current': 1200, 'target': 15000, 'percentage': 8}
+    ]
+    
+    # Get financial tips
+    financial_tips = [
+        {
+            'type': 'info',
+            'icon': '💡',
+            'title': 'Tip',
+            'message': 'Consider setting up automatic transfers to your savings account on payday.'
+        },
+        {
+            'type': 'success',
+            'icon': '✅',
+            'title': 'Good Job',
+            'message': 'You\'re spending 15% less on dining out this month!'
+        },
+        {
+            'type': 'warning',
+            'icon': '⚠️',
+            'title': 'Alert',
+            'message': 'Your entertainment budget is 80% used. Consider reducing spending.'
+        }
+    ]
+    
     context = {
         'user': user,
         'account': account,
+        'current_balance': current_balance,
+        'monthly_income': monthly_income,
+        'total_expenses': total_expenses,
+        'savings': savings,
+        'savings_rate': savings_rate,
+        'recent_transactions': recent_transactions,
+        'expense_breakdown': expense_breakdown,
+        'savings_goals': savings_goals,
+        'financial_tips': financial_tips,
     }
     return render(request, 'sda_app/dashboard.html', context)
+
+
+def login_view(request):
+    """Handle user login"""
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        if username and password:
+            # Try to authenticate the user
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                if user.is_active:
+                    login(request, user)
+                    messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+                    return redirect('dashboard')
+                else:
+                    messages.error(request, 'Your account is inactive. Please contact support.')
+            else:
+                # Try to find the user to provide better error message
+                try:
+                    user_exists = User.objects.get(username=username)
+                    messages.error(request, 'Invalid password. Please try again.')
+                except User.DoesNotExist:
+                    try:
+                        user_exists = User.objects.get(email=username)
+                        messages.error(request, 'Invalid password. Please try again.')
+                    except User.DoesNotExist:
+                        messages.error(request, 'User not found. Please check your username/email.')
+        else:
+            messages.error(request, 'Please fill in all fields.')
+    
+    return render(request, 'sda_app/login.html')
 
 
 def home_view(request):

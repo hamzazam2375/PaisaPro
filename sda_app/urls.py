@@ -10,7 +10,7 @@ urlpatterns = [
     path('verify-otp/<str:email>/', views.verify_otp_view, name='verify_otp'),
     path('resend-otp/<str:email>/', views.resend_otp_view, name='resend_otp'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
-    path('login/', auth_views.LoginView.as_view(template_name='sda_app/login.html'), name='login'),
+    path('login/', views.login_view, name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 ]
 

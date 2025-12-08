@@ -2,69 +2,319 @@
 
 {% block title %}Dashboard - PaisaPro{% endblock %}
 
+{% block extra_css %}
+<style>
+    .dashboard-widget {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .dashboard-widget:hover {
+        transform: translateY(-5px);
+    }
+
+    .financial-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border-left: 4px solid #667eea;
+    }
+
+    .chatbot-container {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 15px;
+        padding: 20px;
+        color: white;
+        min-height: 300px;
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .quick-action-btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        margin: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .quick-action-btn:hover {
+        transform: scale(1.05);
+        color: white;
+    }
+
+    .expense-category {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .category-bar {
+        height: 8px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 4px;
+        margin-top: 5px;
+    }
+
+    .chatbot-placeholder {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <h2>Welcome, {{ user.get_full_name|default:user.username }}!</h2>
-        <div class="card">
-            <div class="card-header">
-                <h5>Account Summary</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <h4 class="text-primary">${{ account.current_balance }}</h4>
-                            <p class="text-muted">Current Balance</p>
-                        </div>
+<div class="container-fluid">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="dashboard-widget">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 class="mb-2">Welcome back, {{ user.get_full_name|default:user.username }}! 👋</h2>
+                        <p class="mb-0">Here's your financial overview for today</p>
                     </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <h4 class="text-success">${{ account.monthly_income }}</h4>
-                            <p class="text-muted">Monthly Income</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <h4 class="text-danger">${{ account.total_expenses }}</h4>
-                            <p class="text-muted">Total Expenses</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <h4 class="text-info">${{ account.savings }}</h4>
-                            <p class="text-muted">Savings</p>
+                    <div class="col-md-4 text-end">
+                        <div class="text-end">
+                            <small>Last updated: {{ "now"|date:"M d, Y" }}</small>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h6>Quick Actions</h6>
+    <!-- Financial Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="financial-card">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="metric-value text-primary">${{ account.current_balance|floatformat:2 }}</div>
+                        <div class="metric-label">Current Balance</div>
                     </div>
-                    <div class="card-body">
-                        <a href="#" class="btn btn-outline-primary btn-sm me-2">Add Expense</a>
-                        <a href="#" class="btn btn-outline-success btn-sm me-2">Add Income</a>
-                        <a href="#" class="btn btn-outline-info btn-sm">View Reports</a>
+                    <div class="text-primary">
+                        <i class="fas fa-wallet fa-2x"></i>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h6>Recent Activity</h6>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="financial-card">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="metric-value text-success">${{ account.monthly_income|floatformat:2 }}</div>
+                        <div class="metric-label">Monthly Income</div>
                     </div>
-                    <div class="card-body">
-                        <p class="text-muted">No recent activity</p>
+                    <div class="text-success">
+                        <i class="fas fa-arrow-up fa-2x"></i>
                     </div>
                 </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="financial-card">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="metric-value text-danger">${{ account.total_expenses|floatformat:2 }}</div>
+                        <div class="metric-label">Total Expenses</div>
+                    </div>
+                    <div class="text-danger">
+                        <i class="fas fa-arrow-down fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="financial-card">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="metric-value text-info">${{ account.savings|floatformat:2 }}</div>
+                        <div class="metric-label">Savings</div>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-piggy-bank fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Financial Tools -->
+        <div class="col-lg-8">
+            <!-- Quick Actions -->
+            <div class="financial-card mb-4">
+                <h5 class="mb-3"><i class="fas fa-bolt text-warning"></i> Quick Actions</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <button class="btn quick-action-btn w-100">
+                            <i class="fas fa-plus me-2"></i>Add Expense
+                        </button>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button class="btn quick-action-btn w-100">
+                            <i class="fas fa-money-bill-wave me-2"></i>Add Income
+                        </button>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button class="btn quick-action-btn w-100">
+                            <i class="fas fa-chart-line me-2"></i>View Reports
+                        </button>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-4 mb-2">
+                        <button class="btn quick-action-btn w-100">
+                            <i class="fas fa-shopping-cart me-2"></i>Shopping List
+                        </button>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button class="btn quick-action-btn w-100">
+                            <i class="fas fa-target me-2"></i>Set Goals
+                        </button>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button class="btn quick-action-btn w-100">
+                            <i class="fas fa-bell me-2"></i>Alerts
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expense Categories -->
+            <div class="financial-card mb-4">
+                <h5 class="mb-3"><i class="fas fa-chart-pie text-primary"></i> Expense Breakdown</h5>
+                {% for expense in expense_breakdown %}
+                <div class="expense-category">
+                    <div>
+                        <strong>{{ expense.category }}</strong>
+                        <div class="category-bar" style="width: {{ expense.percentage }}%;"></div>
+                    </div>
+                    <span class="text-muted">${{ expense.amount }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="financial-card">
+                <h5 class="mb-3"><i class="fas fa-history text-success"></i> Recent Transactions</h5>
+                <div class="list-group list-group-flush">
+                    {% for transaction in recent_transactions %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ transaction.description }}</strong>
+                            <br><small class="text-muted">{{ transaction.date }}</small>
+                        </div>
+                        <span class="badge {% if transaction.amount > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if transaction.amount > 0 %}+{% endif %}${{ transaction.amount|floatformat:2 }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Chatbot and Insights -->
+        <div class="col-lg-4">
+            <!-- AI Financial Advisor Chatbot -->
+            <div class="chatbot-container mb-4">
+                <h5 class="mb-3"><i class="fas fa-robot"></i> AI Financial Advisor</h5>
+                <p class="mb-3">Get personalized financial advice and insights from our AI assistant.</p>
+
+                <div class="chatbot-placeholder">
+                    <i class="fas fa-comments fa-3x mb-3"></i>
+                    <h6>Chatbot Coming Soon!</h6>
+                    <p class="mb-0">Our AI financial advisor will help you with:</p>
+                    <ul class="list-unstyled mt-2">
+                        <li>• Budget optimization</li>
+                        <li>• Investment advice</li>
+                        <li>• Expense analysis</li>
+                        <li>• Financial goal setting</li>
+                    </ul>
+                    <button class="btn btn-light mt-3" disabled>
+                        <i class="fas fa-comment-dots me-2"></i>Start Chat
+                    </button>
+                </div>
+            </div>
+
+            <!-- Financial Tips -->
+            <div class="financial-card">
+                <h5 class="mb-3"><i class="fas fa-lightbulb text-warning"></i> Financial Tips</h5>
+                {% for tip in financial_tips %}
+                <div class="alert alert-{{ tip.type }}">
+                    <strong>{{ tip.icon }} {{ tip.title }}:</strong> {{ tip.message }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Savings Goals -->
+            <div class="financial-card">
+                <h5 class="mb-3"><i class="fas fa-bullseye text-primary"></i> Savings Goals</h5>
+                {% for goal in savings_goals %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ goal.name }}</span>
+                        <span>${{ goal.current|floatformat:0 }} / ${{ goal.target|floatformat:0 }}</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar {% if goal.percentage >= 50 %}bg-success{% elif goal.percentage >= 25 %}bg-info{% else %}bg-warning{% endif %}"
+                            style="width: {{ goal.percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+    // Add some interactive functionality
+    document.addEventListener('DOMContentLoaded', function () {
+        // Animate metric values on load
+        const metricValues = document.querySelectorAll('.metric-value');
+        metricValues.forEach(value => {
+            const finalValue = value.textContent;
+            value.textContent = '$0.00';
+
+            let currentValue = 0;
+            const increment = parseFloat(finalValue.replace('$', '').replace(',', '')) / 50;
+
+            const timer = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= parseFloat(finalValue.replace('$', '').replace(',', ''))) {
+                    value.textContent = finalValue;
+                    clearInterval(timer);
+                } else {
+                    value.textContent = '$' + currentValue.toFixed(2);
+                }
+            }, 30);
+        });
+    });
+</script>
+{% endblock %}

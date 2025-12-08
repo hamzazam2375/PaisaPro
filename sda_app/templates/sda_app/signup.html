@@ -35,28 +35,10 @@
 
         <div class="mb-3">
             <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
-            <div class="input-group">
-                {{ form.email }}
-                <button type="button" class="btn btn-outline-primary" id="verify-email-btn" onclick="sendOTP()">
-                    Verify
-                </button>
-            </div>
+            {{ form.email }}
             {% if form.email.errors %}
             <div class="text-danger">{{ form.email.errors }}</div>
             {% endif %}
-        </div>
-
-        <!-- OTP Verification Section (initially hidden) -->
-        <div class="mb-3" id="otp-section" style="display: none;">
-            <label for="otp-code" class="form-label">Enter Verification Code</label>
-            <div class="input-group">
-                <input type="text" class="form-control text-center" id="otp-code" placeholder="Enter 6-digit code"
-                    maxlength="6" style="font-size: 18px; letter-spacing: 3px;">
-                <button type="button" class="btn btn-success" onclick="verifyOTP()">
-                    Verify Code
-                </button>
-            </div>
-            <div id="otp-status" class="mt-2"></div>
         </div>
 
         <div class="mb-3">
@@ -83,138 +65,5 @@
     </div>
 </div>
 
-<script>
-    let isEmailVerified = false;
-
-    function sendOTP() {
-        const emailInput = document.getElementById('{{ form.email.id_for_label }}');
-        const email = emailInput.value;
-        const verifyBtn = document.getElementById('verify-email-btn');
-        const otpSection = document.getElementById('otp-section');
-        const otpStatus = document.getElementById('otp-status');
-
-        if (!email) {
-            alert('Please enter an email address first.');
-            return;
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            alert('Please enter a valid email address.');
-            return;
-        }
-
-        // Disable button and show loading
-        verifyBtn.disabled = true;
-        verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
-
-        // Add timeout to prevent hanging
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-        fetch('{% url "send_otp" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({ email: email }),
-            signal: controller.signal
-        })
-            .then(response => {
-                clearTimeout(timeoutId);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    otpSection.style.display = 'block';
-                    otpStatus.innerHTML = '<div class="alert alert-success">Verification code sent to your email!</div>';
-                    verifyBtn.innerHTML = 'Resend Code';
-                } else {
-                    otpStatus.innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
-                }
-                verifyBtn.disabled = false;
-            })
-            .catch(error => {
-                clearTimeout(timeoutId);
-                console.error('Error:', error);
-                if (error.name === 'AbortError') {
-                    otpStatus.innerHTML = '<div class="alert alert-danger">Request timed out. Please check your email settings or try again.</div>';
-                } else {
-                    otpStatus.innerHTML = '<div class="alert alert-danger">Failed to send verification code. Please try again.</div>';
-                }
-                verifyBtn.disabled = false;
-                verifyBtn.innerHTML = 'Verify';
-            });
-    }
-
-    function verifyOTP() {
-        const emailInput = document.getElementById('{{ form.email.id_for_label }}');
-        const email = emailInput.value;
-        const otpCode = document.getElementById('otp-code').value;
-        const otpStatus = document.getElementById('otp-status');
-        const verifyBtn = document.getElementById('verify-email-btn');
-
-        if (!otpCode || otpCode.length !== 6) {
-            alert('Please enter a valid 6-digit code.');
-            return;
-        }
-
-        // Disable button and show loading
-        verifyBtn.disabled = true;
-        verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying...';
-
-        fetch('{% url "verify_otp_ajax" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({
-                email: email,
-                otp_code: otpCode
-            })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    isEmailVerified = true;
-                    otpStatus.innerHTML = '<div class="alert alert-success">Email verified successfully! You can now complete your registration.</div>';
-                    verifyBtn.innerHTML = '✓ Verified';
-                    verifyBtn.classList.remove('btn-outline-primary');
-                    verifyBtn.classList.add('btn-success');
-                    verifyBtn.disabled = true;
-                } else {
-                    otpStatus.innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
-                    verifyBtn.disabled = false;
-                    verifyBtn.innerHTML = 'Resend Code';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                otpStatus.innerHTML = '<div class="alert alert-danger">Failed to verify code. Please try again.</div>';
-                verifyBtn.disabled = false;
-                verifyBtn.innerHTML = 'Resend Code';
-            });
-    }
-
-    // Prevent form submission if email is not verified
-    document.querySelector('form').addEventListener('submit', function (e) {
-        if (!isEmailVerified) {
-            e.preventDefault();
-            alert('Please verify your email address before submitting the form.');
-            return false;
-        }
-    });
-
-    // Auto-format OTP input
-    document.getElementById('otp-code').addEventListener('input', function (e) {
-        // Only allow numbers
-        e.target.value = e.target.value.replace(/[^0-9]/g, '');
-    });
-</script>
+<!-- No JavaScript needed for simplified signup -->
 {% endblock %}
