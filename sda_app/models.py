@@ -2,6 +2,10 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
 from decimal import Decimal
+import random
+import string
+from django.utils import timezone
+from datetime import timedelta
 
 
 class User(AbstractUser): 
@@ -213,3 +217,60 @@ class Alert(models.Model):
     
     def __str__(self):
         return f"Alert for {self.user.get_full_name() or self.user.username}: {self.message}"
+
+
+class OTPVerification(models.Model):
+    """OTP verification model for email verification during signup"""
+    email = models.EmailField()
+    otp_code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_verified = models.BooleanField(default=False)
+    attempts = models.IntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "OTP Verification"
+        verbose_name_plural = "OTP Verifications"
+    
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Only set expiry time when creating new OTP
+            self.expires_at = timezone.now() + timedelta(minutes=10)  # OTP expires in 10 minutes
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def generate_otp(cls):
+        """Generate a 6-digit OTP"""
+        return ''.join(random.choices(string.digits, k=6))
+    
+    @classmethod
+    def create_otp(cls, email):
+        """Create a new OTP for the given email"""
+        # Delete any existing unverified OTPs for this email
+        cls.objects.filter(email=email, is_verified=False).delete()
+        
+        # Generate new OTP
+        otp_code = cls.generate_otp()
+        otp = cls.objects.create(email=email, otp_code=otp_code)
+        return otp
+    
+    def is_valid(self):
+        """Check if OTP is still valid (not expired and not verified)"""
+        return not self.is_verified and timezone.now() <= self.expires_at
+    
+    def verify(self, input_otp):
+        """Verify the OTP code"""
+        self.attempts += 1
+        self.save()
+        
+        if not self.is_valid():
+            return False, "OTP has expired or already been used"
+        
+        if self.otp_code == input_otp:
+            self.is_verified = True
+            self.save()
+            return True, "OTP verified successfully"
+        else:
+            return False, "Invalid OTP code"
+    
+    def __str__(self):
+        return f"OTP for {self.email} - {'Verified' if self.is_verified else 'Pending'}"

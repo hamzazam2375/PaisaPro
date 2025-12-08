@@ -1,0 +1,37 @@
+{% extends 'sda_app/base.html' %}
+
+{% block content %}
+<div class="jumbotron text-center">
+    <h1 class="display-4">Welcome to PaisaPro</h1>
+    <p class="lead">Your personal finance management solution</p>
+    <a class="btn btn-primary btn-lg" href="{% url 'signup' %}">Get Started</a>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Track Expenses</h5>
+                <p class="card-text">Monitor your spending across different categories and stay on budget.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Smart Shopping</h5>
+                <p class="card-text">Compare prices and create shopping lists to save money.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Financial Insights</h5>
+                <p class="card-text">Get monthly summaries and AI-powered recommendations.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

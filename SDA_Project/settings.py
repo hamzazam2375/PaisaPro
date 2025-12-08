@@ -12,8 +12,28 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 # Custom User Model
 AUTH_USER_MODEL = 'sda_app.User'
+
+# Login/Logout redirect URLs
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'home'
+
+# Email Configuration
+# For development/testing - emails will be printed to console
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# For production - Working Gmail SMTP configuration
+EMAIL_BACKEND = 'sda_app.working_email_backend.WorkingEmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # For Gmail
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'hamzaazam2375@gmail.com'  # Your Gmail
+EMAIL_HOST_PASSWORD = 'eycn rekv veek ffpw'  # Your Gmail app password
+DEFAULT_FROM_EMAIL = 'PaisaPro <hamzaazam2375@gmail.com>'
 
 
 # Quick-start development settings - unsuitable for production
@@ -75,12 +95,8 @@ WSGI_APPLICATION = 'SDA_Project.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'SDA_DB',
-        'USER': 'postgres',
-        'PASSWORD': '20242024',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
