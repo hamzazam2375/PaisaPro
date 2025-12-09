@@ -1,0 +1,63 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Django database and static files
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+static/react/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.log
+
+# Backup files
+*.backup
+*.bak
+*.old
+*.tmp
+*~
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+.history/
+
+# OS junk files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node.js / React
+node_modules/
+frontend/dist/
+frontend/build/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Coverage and testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+venv/
