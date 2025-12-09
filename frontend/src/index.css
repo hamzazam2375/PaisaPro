@@ -1,0 +1,140 @@
+:root {
+    --bg-color: #1a1a1a;
+    --text-color: #e0e0e0;
+    --card-bg: #2d2d2d;
+    --border-color: rgba(30, 58, 138, 0.4);
+    --navbar-bg: #1a1a2e;
+
+    /* Primary colors - dark blue theme */
+    --primary-blue: #2563eb;
+    --primary-purple: #3b82f6;
+
+    /* Accent colors for variety */
+    --accent-teal: #20d9d2;
+    --accent-coral: #ff8370;
+    --accent-amber: #ffc247;
+    --accent-mint: #6ee7b7;
+
+    /* Success/Info colors */
+    --success-green: #10b981;
+    --info-cyan: #06b6d4;
+
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    outline: none !important;
+}
+
+*:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+#root {
+    width: 100%;
+    margin: 0 auto;
+}
+
+a {
+    font-weight: 500;
+    color: #2563eb;
+    text-decoration: inherit;
+}
+
+a:hover {
+    color: #3b82f6;
+}
+
+/* Ensure all text is visible */
+p,
+span,
+div,
+label,
+input,
+textarea,
+select,
+button {
+    color: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+button {
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.6em 1.2em;
+    font-size: 1em;
+    font-weight: 500;
+    font-family: inherit;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+}
+
+button:focus,
+button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+/* Specific styling for cancel/dashboard link buttons */
+.btn-link {
+    display: inline-block;
+    text-decoration: none;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.6em 1.2em;
+    font-size: 1em;
+    font-weight: 500;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: inherit;
+}
+
+.btn-link:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+    color: inherit;
+    text-decoration: none;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        color: #213547;
+        background-color: #ffffff;
+    }
+
+    a:hover {
+        color: #747bff;
+    }
+
+    button {
+        background-color: #f9f9f9;
+    }
+}

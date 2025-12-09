@@ -63,6 +63,9 @@ PaisaPro/
 - Frontend: React SPA (UI, routing, API calls)
 - Backend: Django REST API + FastAPI (business logic, scraping, AI)
 
+## Main Files
+- `manage.py`, `requirements.txt`, `README.md`, `PROJECT_STRUCTURE.md`, `start_backend.ps1`
+
 ## For details, see README.md
 
 ## File Organization Rules
@@ -86,6 +89,16 @@ PaisaPro/
 - Management commands
 - Database migrations
 - Django settings (config/settings.py)
+
+## What Was Removed/Archived
+
+### ❌ Removed from Active Code
+1. **Django Template Views** - Replaced by React components
+2. **Django Forms** - Replaced by React forms
+3. **Template-based URLs** - Replaced by React Router
+
+### 📦 Archived (Kept for Reference)
+All old Django templates, views, forms, and URLs are moved to `frontend/legacy/` for reference.
 
 ## Clean Separation Benefits
 

@@ -191,17 +191,6 @@
     font-family: inherit;
 }
 
-/* Remove spinner arrows from number inputs */
-input[type="number"].no-spinner::-webkit-inner-spin-button,
-input[type="number"].no-spinner::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-input[type="number"].no-spinner {
-    -moz-appearance: textfield;
-}
-
 .financial-form input::placeholder,
 .financial-form textarea::placeholder {
     color: rgba(255, 255, 255, 0.5) !important;

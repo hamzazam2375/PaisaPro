@@ -19,5 +19,6 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('sda_app.urls')),
+    path('api/', include('sda_app.api_urls')),  # API endpoints for React frontend
+    path('', include('sda_app.urls')),  # Health check and minimal routes
 ]

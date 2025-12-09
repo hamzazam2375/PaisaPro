@@ -1,7 +1,3 @@
-<<<<<<< Updated upstream
-# PaisaPro
-AI Based Financial Assistant
-=======
 
 # 💰 PaisaPro - Financial Management Platform
 
@@ -13,10 +9,10 @@ Personal finance app with React frontend, Django REST API, and FastAPI services 
 pip install -r requirements.txt
 cd frontend && npm install && cd ..
 python manage.py migrate
-# Shortcut:
 # VS Code: Ctrl+Shift+P → "Tasks: Run Task" → "Start All PaisaPro Services"
 # Or run backend and frontend manually
 ```
+
 
 ## 🌟 Main Features
 
@@ -163,6 +159,18 @@ python manage.py test sda_app
 
 5. **Single Currency:** USD conversion hardcoded (1 USD = 278 PKR)
 
+## 🛣️ Future Enhancements
+
+- [ ] Add Redis caching for scraped data
+- [ ] Implement background Celery tasks for scraping
+- [ ] Support multiple currencies with live exchange rates
+- [ ] Add Playwright as Selenium alternative
+- [ ] Integrate more LLM providers (Claude, Gemini)
+- [ ] Add budget forecasting with ML models
+- [ ] Implement expense receipt OCR
+- [ ] Add social expense sharing features
+- [ ] Create mobile app (React Native)
+- [ ] Add export to Excel/CSV
 
 ## 🙏 Acknowledgments
 
@@ -174,4 +182,3 @@ python manage.py test sda_app
 - **Selenium** - Web automation
 - **Chart.js** - Data visualization
 - **Vite** - Fast build tool
->>>>>>> Stashed changes

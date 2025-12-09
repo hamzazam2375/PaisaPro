@@ -85,9 +85,20 @@ const IncomeSetup = () => {
                                 value={monthlyIncome}
                                 onChange={(e) => setMonthlyIncome(e.target.value)}
                                 placeholder="0.00"
-                                className="no-spinner"
                                 required
+                                style={{
+                                    MozAppearance: 'textfield',
+                                    WebkitAppearance: 'none',
+                                    appearance: 'textfield'
+                                }}
                             />
+                            <style>{`
+                                input[type=number]::-webkit-inner-spin-button,
+                                input[type=number]::-webkit-outer-spin-button {
+                                    -webkit-appearance: none;
+                                    margin: 0;
+                                }
+                            `}</style>
                         </div>
 
                         <div className="form-actions">

@@ -96,11 +96,13 @@
 }
 
 .form-group label {
-    display: block;
+    display: block !important;
     margin-bottom: 0.5rem;
     color: #1f2937 !important;
-    font-weight: 600;
-    font-size: 1rem;
+    font-weight: 600 !important;
+    font-size: 0.95rem;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .form-group input,

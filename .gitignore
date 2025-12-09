@@ -60,4 +60,4 @@ lerna-debug.log*
 htmlcov/
 .pytest_cache/
 .tox/
-venv/
+venv
