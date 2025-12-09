@@ -1,0 +1,60 @@
+{% extends 'sda_app/base.html' %}
+
+{% block title %}Verify Email - PaisaPro{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="text-center mb-4">
+        <h2>Verify Your Email</h2>
+        <p class="text-muted">We've sent a 6-digit verification code to:</p>
+        <strong>{{ email }}</strong>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label for="{{ form.otp_code.id_for_label }}" class="form-label">Verification Code</label>
+            {{ form.otp_code }}
+            {% if form.otp_code.errors %}
+            <div class="text-danger">{{ form.otp_code.errors }}</div>
+            {% endif %}
+            <div class="form-text">{{ form.otp_code.help_text }}</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 mb-3">Verify Email</button>
+    </form>
+
+    <div class="text-center">
+        <p class="text-muted">Didn't receive the code?</p>
+        <a href="{% url 'resend_otp' email=email %}" class="btn btn-outline-secondary">Resend Code</a>
+    </div>
+
+    {% if otp_expires_at %}
+    <div class="text-center mt-3">
+        <small class="text-muted">
+            Code expires at: {{ otp_expires_at|date:"M d, Y H:i" }}
+        </small>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Auto-focus on OTP input
+    document.addEventListener('DOMContentLoaded', function () {
+        const otpInput = document.querySelector('input[name="otp_code"]');
+        if (otpInput) {
+            otpInput.focus();
+        }
+    });
+
+    // Auto-submit when 6 digits are entered
+    document.querySelector('input[name="otp_code"]').addEventListener('input', function (e) {
+        if (e.target.value.length === 6) {
+            // Optional: auto-submit after a short delay
+            // setTimeout(() => e.target.form.submit(), 500);
+        }
+    });
+</script>
+{% endblock %}
+
