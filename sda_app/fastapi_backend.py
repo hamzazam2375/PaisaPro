@@ -733,12 +733,45 @@ class WebDriverFactory:
         if headless:
             options.add_argument("--headless=new")
         
+        # Performance & stability
         options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--disable-gpu-compositing")
+        options.add_argument("--disable-gpu-sandbox")
+        options.add_argument("--disable-gpu-rasterization")
+        options.add_argument("--disable-accelerated-2d-canvas")
+        options.add_argument("--disable-accelerated-video-decode")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--no-sandbox")
         options.add_argument("--window-size=1920,1080")
+        
+        # Force software rendering to avoid GPU virtualization errors
+        options.add_experimental_option('prefs', {
+            'profile.default_content_setting_values': {
+                'notifications': 2
+            }
+        })
+        
+        # Suppress errors and logging
+        options.add_argument("--log-level=3")  # Suppress console logs (only show fatal errors)
+        options.add_argument("--silent")
+        options.add_argument("--disable-logging")
+        options.add_argument("--disable-notifications")
+        options.add_argument("--disable-popup-blocking")
+        
+        # Disable unnecessary features that cause errors
+        options.add_argument("--disable-webgl")  # Disable WebGL errors
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-background-networking")  # Disable GCM/registration errors
+        options.add_argument("--disable-sync")
+        options.add_argument("--disable-translate")
+        options.add_argument("--disable-default-apps")
+        options.add_argument("--disable-component-extensions-with-background-pages")
+        
+        # Anti-detection
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
         options.add_experimental_option('useAutomationExtension', False)
         options.add_argument(
             "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -746,8 +779,8 @@ class WebDriverFactory:
         )
         
         driver = webdriver.Chrome(options=options)
-        driver.set_page_load_timeout(180)  # 3 minutes timeout
-        driver.implicitly_wait(20)  # Wait up to 20 seconds for elements
+        driver.set_page_load_timeout(60)
+        driver.implicitly_wait(15)
         return driver
 
 
@@ -866,7 +899,17 @@ class AlfatahScraper(BaseProductScraper):
         encoded_query = quote_plus(query)
         url = f"https://alfatah.pk/search?q={encoded_query}"
         if self._driver:
-            self._driver.get(url)
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    self._driver.get(url)
+                    break  # Success, exit retry loop
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        self.output.write(f"   ⚠️ Retry {attempt + 1}/{max_retries - 1} for Alfatah...")
+                        time.sleep(3)  # Wait 3 seconds before retry
+                    else:
+                        raise  # Re-raise on final attempt
     
     def _extract_products(self) -> List[Any]:
         if not self._driver:
@@ -1133,17 +1176,21 @@ class ImtiazScraper(BaseProductScraper):
         if not self._driver:
             return []
         
+        soup = BeautifulSoup(self._driver.page_source, "html.parser")
+        
         selectors = [
-            ('div[class*="ProductCard"]', 'ProductCard'),
-            ('div[class*="product"]', 'product class'),
-            ('article', 'article'),
+            'div[class*="ProductCard"]',
+            'div[class*="product-card"]',
+            'div.product',
+            'article[class*="product"]',
+            'div[data-testid*="product"]',
         ]
         
         elements = []
-        for selector, name in selectors:
-            elements = self._driver.find_elements(By.CSS_SELECTOR, selector)
+        for selector in selectors:
+            elements = soup.select(selector)
             if len(elements) > 5:
-                self.output.write(f"   📦 Using selector: {name} ({len(elements)} found)")
+                self.output.write(f"   📦 Using selector: {selector} ({len(elements)} found)")
                 break
         
         return elements[:self.config.max_results]
@@ -1151,88 +1198,76 @@ class ImtiazScraper(BaseProductScraper):
     def _parse_products(self, raw_data: List[Any]) -> List[Dict[str, Any]]:
         products = []
         
-        for element in raw_data:
+        self.output.write(f"   🔍 Parsing {len(raw_data)} elements...")
+        
+        for idx, element in enumerate(raw_data):
             try:
-                text = element.text.strip()
-                if not text or len(text) < 15:
+                text = element.get_text(strip=True, separator=' ')
+                if not text or len(text) < 10:
                     continue
                 
                 price_pkr = self.price_extractor.extract(text)
                 if not price_pkr:
                     continue
                 
+                # Try to extract name from various patterns
                 lines = [l.strip() for l in text.split('\n') if l.strip()]
                 name = None
+                
+                # Look for lines that are likely product names
                 for line in lines:
-                    if len(line) > 8 and 'Rs' not in line and 'PKR' not in line:
-                        name = line
+                    line_clean = line.strip()
+                    # Skip lines with prices or very short text
+                    if len(line_clean) > 8 and 'Rs' not in line_clean and 'PKR' not in line_clean and not line_clean.replace('.','').replace(',','').isdigit():
+                        name = line_clean
                         break
                 
-                if not name or any(p['name'] == name for p in products):
+                # If no name found, try to get from title attribute or alt text
+                if not name:
+                    # Try img alt text
+                    img = element.find('img')
+                    if img and img.get('alt'):
+                        name = img.get('alt')
+                    # Try any title attributes
+                    if not name:
+                        title_elem = element.find(attrs={'title': True})
+                        if title_elem:
+                            name = title_elem.get('title')
+                
+                if not name or len(name) < 3:
+                    continue
+                    
+                if any(p['name'] == name for p in products):
                     continue
                 
                 price_usd = self.currency_converter.pkr_to_usd(price_pkr)
                 
-                # Extract product URL - try multiple methods
+                # Extract product URL
                 product_url = None
-                try:
-                    # Get all links in the element
-                    links = element.find_elements(By.TAG_NAME, 'a')
-                    
-                    # Method 1: Find link with product path
-                    for link in links:
-                        href = link.get_attribute('href')
-                        if href and ('/product/' in href or '/products/' in href or '/p/' in href or '/item/' in href):
+                link = element.find('a', href=True)
+                if link:
+                    href = link.get('href', '')
+                    if href:
+                        if href.startswith('http'):
                             product_url = href
-                            break
-                    
-                    # Method 2: Take ANY Imtiaz link (not homepage, not cart, not checkout)
-                    if not product_url:
-                        for link in links:
-                            href = link.get_attribute('href')
-                            if href and 'imtiaz.com.pk' in href:
-                                # Skip homepage and utility pages
-                                if href not in ['https://shop.imtiaz.com.pk/', 'https://shop.imtiaz.com.pk'] and \
-                                   '/cart' not in href and '/checkout' not in href and '/login' not in href:
-                                    product_url = href
-                                    break
-                    
-                    # Method 3: Check if parent element is a link
-                    if not product_url:
-                        try:
-                            parent = element.find_element(By.XPATH, '..')
-                            if parent.tag_name == 'a':
-                                href = parent.get_attribute('href')
-                                if href and 'imtiaz.com.pk' in href:
-                                    product_url = href
-                        except:
-                            pass
-                    
-                    # Method 4: Check if element itself is wrapped in a link
-                    if not product_url:
-                        if element.tag_name == 'a':
-                            href = element.get_attribute('href')
-                            if href:
-                                product_url = href
+                        elif href.startswith('/'):
+                            product_url = f"https://shop.imtiaz.com.pk{href}"
                 
-                except Exception as e:
-                    self.output.write(f"   ⚠️ URL extraction error: {str(e)[:30]}")
-                
-                # Use homepage as fallback if no specific URL found
                 if not product_url:
                     product_url = "https://shop.imtiaz.com.pk/"
                 
                 products.append({
-                    "name": name,
-                    "price_pkr": float(price_pkr),
-                    "price_usd": price_usd,
-                    "url": product_url,
-                    "source": self.get_source_name()
+                    'name': name,
+                    'price_pkr': price_pkr,
+                    'price_usd': price_usd,
+                    'source': self.get_source_name(),
+                    'url': product_url
                 })
                 
-            except:
+            except Exception as e:
                 continue
         
+        self.output.write(f"   ✅ Successfully parsed {len(products)} products")
         return products
 
 
@@ -1410,13 +1445,18 @@ class PriceComparisonService:
         
         if parallel:
             with ThreadPoolExecutor(max_workers=self.config.max_workers) as executor:
-                future_to_source = {
-                    executor.submit(self._scrape_single_source, source, query, sort_by_price): source
-                    for source in sources
-                }
+                # Stagger scraper launches to avoid overwhelming the system and sites
+                futures = []
+                for idx, source in enumerate(sources):
+                    # Add small delay between launching scrapers (especially for Alfatah)
+                    if idx > 0:
+                        time.sleep(1)  # 1 second stagger between each scraper
+                    
+                    future = executor.submit(self._scrape_single_source, source, query, sort_by_price)
+                    futures.append((future, source))
                 
-                for future in as_completed(future_to_source):
-                    source = future_to_source[future]
+                # Collect results as they complete
+                for future, source in futures:
                     try:
                         products = future.result()
                         products_by_source[source] = products
@@ -1433,14 +1473,25 @@ class PriceComparisonService:
         elapsed_time = time.time() - start_time
         
         # Handle equal distribution or regular sorting
-        if equal_distribution and not sort_by_price:
+        if equal_distribution:
             per_source = top_n // len(sources)
             remainder = top_n % len(sources)
             
             result = []
             for i, source in enumerate(sources):
                 count = per_source + (1 if i < remainder else 0)
-                result.extend(products_by_source.get(source, [])[:count])
+                source_products = products_by_source.get(source, [])
+                
+                # Always sort products from this source by price to get the best ones
+                source_products.sort(key=lambda p: p['price_pkr'])
+                
+                # Take top products from this source
+                result.extend(source_products[:count])
+            
+            # If sort_by_price is enabled, sort the combined results again
+            if sort_by_price:
+                result.sort(key=lambda p: p['price_pkr'])
+                self.output.write(f"📊 Applied final sorting across all {len(result)} products from {len(sources)} sources")
             
             all_products = result
             
@@ -1451,8 +1502,10 @@ class PriceComparisonService:
         self.output.write(f"✅ Total products found: {len(all_products)}")
         self.output.write(f"⏱️  Total time: {elapsed_time:.2f} seconds")
         
-        if equal_distribution and not sort_by_price:
-            self.output.write(f"🏆 Returning {top_n} products (equal distribution from each source)")
+        if equal_distribution and sort_by_price:
+            self.output.write(f"🏆 Returning top {top_n} cheapest products (best from each source, globally sorted)")
+        elif equal_distribution:
+            self.output.write(f"🏆 Returning {top_n} products (best from each source)")
         else:
             self.output.write(f"🏆 Returning top {top_n} {'cheapest ' if sort_by_price else ''}products")
         

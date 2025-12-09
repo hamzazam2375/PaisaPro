@@ -33,7 +33,6 @@ static/react/
 *~
 
 # IDE settings
-.vscode/
 .idea/
 *.swp
 *.swo

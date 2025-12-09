@@ -190,6 +190,7 @@ const ShoppingList = () => {
                                     onChange={(e) => setNewListName(e.target.value)}
                                     placeholder="Enter list name"
                                     className="list-name-input"
+                                    autoComplete="off"
                                     required
                                 />
                             </div>

@@ -16,6 +16,7 @@ const PriceComparison = () => {
     const [sources, setSources] = useState(['alfatah', 'daraz', 'imtiaz']);
     const [topN, setTopN] = useState(10);
     const [sortByPrice, setSortByPrice] = useState(true);
+    const [equalDistribution, setEqualDistribution] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
 
     const availableSources = [
@@ -39,7 +40,7 @@ const PriceComparison = () => {
                 query: query,
                 top_n: topN,
                 sort: sortByPrice,
-                equal_distribution: false,
+                equal_distribution: equalDistribution,
                 parallel: true
             });
 
@@ -223,6 +224,22 @@ const PriceComparison = () => {
                                             />
                                             <label className="form-check-label">
                                                 {sortByPrice ? 'Enabled' : 'Disabled'}
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="row g-3 mt-2">
+                                    <div className="col-md-12">
+                                        <label className="form-label">Equal Distribution</label>
+                                        <div className="form-check form-switch">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                checked={equalDistribution}
+                                                onChange={(e) => setEqualDistribution(e.target.checked)}
+                                            />
+                                            <label className="form-check-label">
+                                                {equalDistribution ? 'Get equal products from each source' : 'Show all results together'}
                                             </label>
                                         </div>
                                     </div>
