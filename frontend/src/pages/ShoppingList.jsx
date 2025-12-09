@@ -74,7 +74,7 @@ const ShoppingList = () => {
             const hasValidQuantity = item.quantity !== '' && parseInt(item.quantity) > 0;
             return hasValidName && hasValidQuantity;
         });
-        
+
         if (validItems.length === 0) {
             setError('Please add at least one item with a valid name and quantity');
             return;
