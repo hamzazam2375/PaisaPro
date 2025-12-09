@@ -1,200 +1,138 @@
 import os
-import re
 from django.conf import settings
-from django.contrib.auth.models import User
-from .models import Account, OtherExpenses
+import google.generativeai as genai
 
-# Try to import openai, but don't fail if it's not available
-try:
-    import openai
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
 
 class FinancialChatbotService:
     def __init__(self):
-        # Set OpenAI API key from environment or settings
-        self.api_key = os.getenv("OPENAI_API_KEY") or getattr(settings, 'OPENAI_API_KEY', None)
-        if self.api_key:
-            openai.api_key = self.api_key
-    
-    def is_financial_question(self, message):
-        """Check if the question is related to financial advice"""
-        financial_keywords = [
-            'saving', 'savings', 'budget', 'budgeting', 'finance', 'financial',
-            'expense', 'expenses', 'spending', 'money', 'income', 'salary',
-            'investment', 'invest', 'investing', 'loan', 'debt', 'credit',
-            'cash', 'dollar', 'rupee', 'currency', 'wealth', 'rich', 'poor',
-            'afford', 'expensive', 'cheap', 'cost', 'price', 'pay', 'payment',
-            'bank', 'account', 'balance', 'withdraw', 'deposit', 'transfer',
-            'retirement', 'pension', 'emergency', 'fund', 'goal', 'target',
-            'plan', 'planning', 'strategy', 'tip', 'advice', 'suggestion',
-            'help', 'improve', 'increase', 'decrease', 'reduce', 'cut',
-            'manage', 'control', 'track', 'monitor', 'analyze', 'review'
-        ]
-        
-        # Convert to lowercase for case-insensitive matching
-        message_lower = message.lower()
-        
-        # Check for financial keywords
-        keyword_matches = sum(1 for keyword in financial_keywords if keyword in message_lower)
-        
-        # Check for financial question patterns
-        financial_patterns = [
-            r'\b(how|what|when|where|why|which)\b.*\b(save|spend|invest|budget|finance)\b',
-            r'\b(save|spend|invest|budget|finance)\b.*\b(how|what|when|where|why|which)\b',
-            r'\b(money|dollar|rupee|cash)\b',
-            r'\b(income|salary|wage|earn)\b',
-            r'\b(expense|cost|price|pay)\b',
-            r'\b(rich|wealth|poor|broke)\b',
-            r'\b(afford|expensive|cheap)\b'
-        ]
-        
-        pattern_matches = sum(1 for pattern in financial_patterns if re.search(pattern, message_lower))
-        
-        # Consider it financial if it has keywords or patterns
-        return keyword_matches > 0 or pattern_matches > 0
-    
-    def get_user_financial_context(self, user):
-        """Get user's financial data for context"""
-        try:
-            account = user.account
-            expenses = OtherExpenses.objects.filter(user=user).order_by('-date_timestamp')[:5]
-            
-            context = {
-                'monthly_income': float(account.monthly_income),
-                'current_balance': float(account.current_balance),
-                'savings': float(account.savings),
-                'total_expenses': float(account.total_expenses),
-                'recent_expenses': [
-                    {
-                        'amount': float(expense.amount),
-                        'category': expense.category,
-                        'description': expense.description,
-                        'date': expense.expense_date.strftime('%Y-%m-%d')
+        # Set Gemini API key from environment or settings
+        self.api_key = os.getenv("GEMINI_API_KEY") or getattr(settings, 'GEMINI_API_KEY', None)
+        self.enabled = bool(self.api_key)
+        if self.enabled:
+            try:
+                genai.configure(api_key=self.api_key)
+                # Use gemini-pro (the stable v1 model)
+                self.model = genai.GenerativeModel(
+                    'gemini-pro',
+                    generation_config={
+                        "temperature": 0.9,
+                        "top_p": 1,
+                        "top_k": 1,
+                        "max_output_tokens": 2048,
                     }
-                    for expense in expenses
-                ]
-            }
-            return context
-        except:
-            return None
+                )
+                self.chat_sessions = {}  # Store chat sessions per user
+            except Exception as e:
+                print(f"Gemini API initialization error: {e}")
+                self.enabled = False
+    
+
     
     def generate_response(self, message, user=None):
-        """Generate AI response for financial questions"""
-        # Check if question is financial
-        if not self.is_financial_question(message):
-            return "I'm a financial advisor. Please ask me questions about saving money, budgeting, investments, expenses, or other financial topics."
-        
-        # If OpenAI is not available, provide fallback responses
-        if not OPENAI_AVAILABLE or not self.api_key:
-            return self.get_fallback_response(message, user)
-        
-        # Get user's financial context if available
-        user_context = ""
-        if user and hasattr(user, 'account'):
-            context = self.get_user_financial_context(user)
-            if context:
-                user_context = f"""
-                User's Financial Profile:
-                - Monthly Income: ${context['monthly_income']:,.2f}
-                - Current Balance: ${context['current_balance']:,.2f}
-                - Savings: ${context['savings']:,.2f}
-                - Total Expenses: ${context['total_expenses']:,.2f}
-                - Recent Expenses: {context['recent_expenses']}
-                """
-        
-        # Create comprehensive prompt
-        prompt = f"""
-        You are a professional financial advisor chatbot for PaisaPro, a personal finance management app.
-        
-        {user_context}
-        
-        Guidelines:
-        1. Provide specific, actionable financial advice
-        2. Give personalized suggestions based on the user's financial data when available
-        3. Focus on practical tips for saving money, budgeting, and financial planning
-        4. Be encouraging and supportive
-        5. Keep responses concise but informative (2-3 paragraphs max)
-        6. If user asks about their specific data, reference their actual numbers
-        
-        User Question: {message}
-        
-        Please provide helpful financial advice:
-        """
+        """Generate chatbot response with conversation context"""
+        if not self.enabled:
+            return self._generic_response(message)
         
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a helpful financial advisor."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=300,
-                temperature=0.7
-            )
-            return response["choices"][0]["message"]["content"].strip()
+            # Get or create chat session for user
+            user_id = user.id if user else 'anonymous'
+            if user_id not in self.chat_sessions:
+                # Create new chat session with system instruction
+                system_instruction = "You are PaisaPro AI, a friendly and knowledgeable financial advisor assistant. Provide practical, personalized financial advice in a conversational tone. Keep responses concise but helpful."
+                
+                # Add user context if available
+                if user and hasattr(user, 'account'):
+                    account = user.account
+                    system_instruction += f"\n\nUser's Current Financial Situation:\n- Monthly Income: ${account.monthly_income}\n- Current Balance: ${account.current_balance}\n- Savings: ${account.savings}\n- Total Expenses: ${account.total_expenses}\n- Budget Limit: ${account.budget_limit}"
+                
+                # Start new chat
+                self.chat_sessions[user_id] = self.model.start_chat(history=[])
+            
+            # Get chat session
+            chat = self.chat_sessions[user_id]
+            
+            # Send message and get response
+            response = chat.send_message(message)
+            return response.text
+            
         except Exception as e:
-            return self.get_fallback_response(message, user)
+            error_msg = str(e)
+            print(f"Gemini API error: {error_msg}")
+            # Clear failed session
+            if user:
+                self.chat_sessions.pop(user.id, None)
+            
+            # Return error message instead of generic response
+            return f"I'm having trouble connecting to the AI service right now. Error: {error_msg}\n\nPlease check your GEMINI_API_KEY in the .env file and ensure you have API quota available."
     
-    def get_fallback_response(self, message, user=None):
-        """Provide fallback responses when OpenAI is not available"""
+
+    
+    def _generic_response(self, message):
+        """Generic helpful responses when API is unavailable"""
         message_lower = message.lower()
         
-        # Get user context for personalized responses
-        user_context = ""
-        if user and hasattr(user, 'account'):
-            context = self.get_user_financial_context(user)
-            if context:
-                user_context = f"Based on your current balance of ${context['current_balance']:,.2f} and monthly income of ${context['monthly_income']:,.2f}, "
-        
-        # Provide specific advice based on keywords
         if any(word in message_lower for word in ['save', 'saving', 'savings']):
-            return f"{user_context}Here are some savings tips: 1) Set aside 20% of your income automatically, 2) Create an emergency fund with 3-6 months of expenses, 3) Track your spending to identify areas to cut back, 4) Set specific savings goals with target amounts and dates."
+            return """Here are some effective saving strategies:
+
+1. **50/30/20 Rule**: Allocate 50% to needs, 30% to wants, and 20% to savings
+2. **Automate Savings**: Set up automatic transfers to your savings account
+3. **Emergency Fund**: Aim for 3-6 months of expenses
+4. **Cut Unnecessary Expenses**: Review subscriptions and recurring costs
+5. **High-Yield Savings**: Use accounts with better interest rates"""
         
-        elif any(word in message_lower for word in ['budget', 'budgeting']):
-            return f"{user_context}For effective budgeting: 1) Use the 50/30/20 rule (50% needs, 30% wants, 20% savings), 2) Track all expenses for a month to understand spending patterns, 3) Set monthly spending limits for each category, 4) Review and adjust your budget regularly."
+        elif any(word in message_lower for word in ['budget', 'budgeting', 'plan']):
+            return """Creating an effective budget:
+
+1. **Track Income**: Know exactly what you earn monthly
+2. **List Expenses**: Categorize into fixed and variable costs
+3. **Set Limits**: Allocate specific amounts to each category
+4. **Monitor Progress**: Review weekly and adjust as needed
+5. **Use Tools**: Leverage apps like PaisaPro to track automatically"""
         
-        elif any(word in message_lower for word in ['invest', 'investment', 'investing']):
-            return f"{user_context}Investment advice: 1) Start with low-risk options like index funds, 2) Diversify your portfolio across different asset classes, 3) Consider your risk tolerance and time horizon, 4) Don't invest money you need in the next 3-5 years."
-        
-        elif any(word in message_lower for word in ['expense', 'expenses', 'spending']):
-            return f"{user_context}To manage expenses: 1) Categorize your spending (needs vs wants), 2) Look for recurring subscriptions you can cancel, 3) Compare prices before major purchases, 4) Set spending alerts to stay within budget."
+        elif any(word in message_lower for word in ['invest', 'investing', 'investment']):
+            return """Investment basics for beginners:
+
+1. **Start Early**: Time in the market beats timing the market
+2. **Emergency Fund First**: Have 3-6 months saved before investing
+3. **Diversify**: Don't put all eggs in one basket
+4. **Low-Cost Index Funds**: Great for beginners
+5. **Long-term Mindset**: Invest for 5+ years minimum"""
         
         elif any(word in message_lower for word in ['debt', 'loan', 'credit']):
-            return f"{user_context}Debt management: 1) Pay off high-interest debt first, 2) Consider debt consolidation if you have multiple loans, 3) Make more than minimum payments when possible, 4) Avoid taking on new debt while paying off existing ones."
+            return """Managing debt effectively:
+
+1. **List All Debts**: Know what you owe and interest rates
+2. **Avalanche Method**: Pay high-interest debt first
+3. **Minimum Payments**: Always pay at least the minimum on all debts
+4. **Negotiate Rates**: Call creditors to request lower rates
+5. **Avoid New Debt**: Stop using credit cards while paying off debt"""
         
         else:
-            return f"{user_context}Here are some general financial tips: 1) Build an emergency fund, 2) Pay yourself first by saving before spending, 3) Track your net worth regularly, 4) Set specific financial goals, 5) Review your finances monthly."
+            return """I'm here to help with your finances! I can provide advice on:
+
+💰 **Saving Money** - Building emergency funds and saving strategies
+📊 **Budgeting** - Creating and maintaining budgets
+📈 **Investing** - Basic investment guidance
+💳 **Debt Management** - Strategies to pay off debt
+🎯 **Financial Goals** - Planning and achieving your goals
+
+What would you like to know more about?"""
+    
+    def clear_chat_history(self, user=None):
+        """Clear chat history for a user"""
+        user_id = user.id if user else 'anonymous'
+        if user_id in self.chat_sessions:
+            del self.chat_sessions[user_id]
+            return True
+        return False
     
     def get_quick_tips(self, user=None):
-        """Get quick financial tips based on user's data"""
-        if not user or not hasattr(user, 'account'):
-            return [
-                "Start by tracking your daily expenses",
-                "Set aside 20% of your income for savings",
-                "Create a monthly budget and stick to it",
-                "Build an emergency fund with 3-6 months of expenses"
-            ]
-        
-        account = user.account
-        tips = []
-        
-        # Personalized tips based on user's financial situation
-        if account.savings < account.monthly_income * 0.1:
-            tips.append("Consider increasing your savings rate to at least 10% of your income")
-        
-        if account.total_expenses > account.monthly_income * 0.8:
-            tips.append("Your expenses are high relative to income. Look for areas to cut back")
-        
-        if account.current_balance < account.monthly_income * 0.5:
-            tips.append("Build a larger emergency fund for better financial security")
-        
-        # Add general tips
-        tips.extend([
-            "Review your expenses monthly to identify spending patterns",
-            "Set specific financial goals with target amounts and dates",
-            "Consider automating your savings transfers"
-        ])
-        
-        return tips[:4]  # Return top 4 tips
+        """Get quick financial tips"""
+        tips = [
+            "Track every expense to understand your spending patterns",
+            "Set aside 20% of your income for savings",
+            "Create an emergency fund covering 3-6 months of expenses",
+            "Review and adjust your budget monthly",
+            "Avoid impulse purchases by waiting 24 hours before buying"
+        ]
+        return tips
