@@ -235,6 +235,7 @@ const OptimizedCart = () => {
                                                 value={newItem.quantity}
                                                 onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 1 })}
                                                 min="1"
+                                                step="1"
                                                 style={{
                                                     width: '100%',
                                                     color: '#fff',

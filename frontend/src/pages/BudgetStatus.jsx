@@ -30,21 +30,35 @@ const BudgetStatus = () => {
 
     const fetchBudgetData = async () => {
         try {
+            console.log('Fetching budget data...');
             const response = await fetch('/api/budget/', {
                 credentials: 'include'
             });
+
+            console.log('Budget response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Budget fetch failed:', errorText);
+                throw new Error('Failed to fetch budget data');
+            }
+
             const data = await response.json();
+            console.log('Budget data received:', data);
             setBudgetData(data);
             setNewBudget(data.budget_limit || '');
 
             // Populate category budgets from response
             const catBudgets = {};
-            data.category_budgets.forEach(cb => {
-                catBudgets[cb.category] = cb.limit;
-            });
+            if (data.category_budgets && Array.isArray(data.category_budgets)) {
+                data.category_budgets.forEach(cb => {
+                    catBudgets[cb.category] = cb.limit;
+                });
+            }
             setCategoryBudgets(prev => ({ ...prev, ...catBudgets }));
         } catch (err) {
-            setError('Failed to load budget data');
+            console.error('Budget fetch error:', err);
+            setError(`Failed to load budget data: ${err.message}`);
         } finally {
             setLoading(false);
         }
@@ -76,7 +90,7 @@ const BudgetStatus = () => {
                     limit: parseFloat(limit)
                 }));
 
-            await fetch('/api/budget/', {
+            const response = await fetch('/api/budget/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -89,10 +103,16 @@ const BudgetStatus = () => {
                 })
             });
 
-            fetchBudgetData();
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update budget');
+            }
+
+            await fetchBudgetData();
             setShowCategoryForm(false);
         } catch (err) {
-            setError('Failed to update budget');
+            setError(err.message || 'Failed to update budget');
+            console.error('Budget update error:', err);
         } finally {
             setSaving(false);
         }
@@ -121,7 +141,20 @@ const BudgetStatus = () => {
     };
 
     if (loading) {
-        return <div className="financial-page-container"><div className="loading">Loading...</div></div>;
+        return (
+            <div className="financial-page-container">
+                <div className="loading" style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    minHeight: '100vh',
+                    color: '#fff',
+                    fontSize: '1.2rem'
+                }}>
+                    Loading Budget Data...
+                </div>
+            </div>
+        );
     }
 
     const percentUsed = budgetData?.budget_limit > 0
@@ -216,13 +249,13 @@ const BudgetStatus = () => {
                                                             {catBudget.category}
                                                         </h4>
                                                         <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
-                                                            ${catBudget.spent.toFixed(2)} / ${catBudget.limit.toFixed(2)}
+                                                            ${parseFloat(catBudget.spent || 0).toFixed(2)} / ${parseFloat(catBudget.limit || 0).toFixed(2)}
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <p style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold', color: isOverBudget ? '#ff6b6b' : '#51cf66' }}>
-                                                        ${catBudget.remaining.toFixed(2)}
+                                                        ${parseFloat(catBudget.remaining || 0).toFixed(2)}
                                                     </p>
                                                     <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
                                                         remaining
@@ -266,10 +299,11 @@ const BudgetStatus = () => {
                                 <input
                                     type="number"
                                     id="budget"
-                                    step="0.01"
+                                    step="1"
+                                    min="0"
                                     value={newBudget}
                                     onChange={(e) => setNewBudget(e.target.value)}
-                                    placeholder="0.00"
+                                    placeholder="0"
                                     required
                                 />
                             </div>
@@ -293,10 +327,11 @@ const BudgetStatus = () => {
                                             <input
                                                 type="number"
                                                 id={category}
-                                                step="0.01"
+                                                step="1"
+                                                min="0"
                                                 value={categoryBudgets[category]}
                                                 onChange={(e) => setCategoryBudgets(prev => ({ ...prev, [category]: e.target.value }))}
-                                                placeholder="0.00"
+                                                placeholder="0"
                                             />
                                         </div>
                                     ))}

@@ -82,7 +82,8 @@ const AddMoney = () => {
                                 type="number"
                                 id="amount"
                                 name="amount"
-                                step="0.01"
+                                step="1"
+                                min="0"
                                 value={formData.amount}
                                 onChange={handleChange}
                                 required

@@ -95,7 +95,7 @@
     margin-bottom: 1.25rem;
 }
 
-.form-group label {
+.auth-form .form-group label {
     display: block !important;
     margin-bottom: 0.5rem;
     color: #1f2937 !important;
@@ -103,6 +103,10 @@
     font-size: 0.95rem;
     visibility: visible !important;
     opacity: 1 !important;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .form-group input,

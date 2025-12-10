@@ -407,9 +407,14 @@ def expenses_api(request):
             # Remove user from data if present (will be set by save)
             data.pop('user', None)
             
+            # Debug: Print received data
+            print(f"DEBUG: Received expense data: {data}")
+            print(f"DEBUG: Amount received: {data.get('amount')}, Type: {type(data.get('amount'))}")
+            
             serializer = ExpenseSerializer(data=data)
             if serializer.is_valid():
                 expense = serializer.save(user=user)
+                print(f"DEBUG: Expense created with amount: {expense.amount}")
                 # Deduct from account balance and update totals
                 account = user.account
                 account.subtract_expense(expense.amount)
@@ -601,13 +606,24 @@ def budget_api(request):
             
             # Update or create category budgets
             for cat_budget in category_budgets:
+                if 'category' not in cat_budget or 'limit' not in cat_budget:
+                    continue
+                    
                 CategoryBudget.objects.update_or_create(
                     user=request.user,
                     category=cat_budget['category'],
                     defaults={'limit': cat_budget['limit']}
                 )
             
-            return Response({'message': 'Budget updated successfully'}, status=status.HTTP_200_OK)
+            # Return updated data
+            category_budgets_updated = CategoryBudget.objects.filter(user=request.user)
+            category_data = CategoryBudgetSerializer(category_budgets_updated, many=True).data
+            
+            return Response({
+                'message': 'Budget updated successfully',
+                'budget_limit': float(account.budget_limit),
+                'category_budgets': category_data
+            }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

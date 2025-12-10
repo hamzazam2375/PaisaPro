@@ -80,11 +80,11 @@ const IncomeSetup = () => {
                             <input
                                 type="number"
                                 id="monthlyIncome"
-                                step="0.01"
+                                step="1"
                                 min="0"
                                 value={monthlyIncome}
                                 onChange={(e) => setMonthlyIncome(e.target.value)}
-                                placeholder="0.00"
+                                placeholder="0"
                                 required
                                 style={{
                                     MozAppearance: 'textfield',

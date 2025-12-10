@@ -90,7 +90,8 @@ const AddSavings = () => {
                             <input
                                 type="number"
                                 id="amount"
-                                step="0.01"
+                                step="1"
+                                min="0"
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
                                 placeholder={action === 'add' ? 'Enter amount to save' : 'Enter amount to withdraw'}

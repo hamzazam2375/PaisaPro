@@ -41,7 +41,7 @@ body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    background-color: var(--bg-color);
+    background-color: #ffffff;
     color: var(--text-color);
 }
 
@@ -64,7 +64,6 @@ a:hover {
 p,
 span,
 div,
-label,
 input,
 textarea,
 select,

@@ -283,9 +283,13 @@
 }
 
 .contact-form label {
+    display: block !important;
     margin-bottom: 0.5rem;
-    color: #fff;
-    font-weight: 500;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .contact-form input,

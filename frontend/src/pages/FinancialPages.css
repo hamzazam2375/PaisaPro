@@ -172,10 +172,13 @@
 }
 
 .financial-form label {
-    display: block;
+    display: block !important;
     margin-bottom: 0.5rem;
-    color: #ffffff;
-    font-weight: 500;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .financial-form input,

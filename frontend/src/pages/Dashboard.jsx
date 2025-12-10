@@ -156,7 +156,8 @@ const Dashboard = () => {
                                         <div className="mb-3">
                                             <input
                                                 type="number"
-                                                step="0.01"
+                                                step="1"
+                                                min="0"
                                                 className="form-control"
                                                 placeholder="Enter monthly income"
                                                 value={monthlyIncome}

@@ -197,6 +197,7 @@ const SentimentAnalysis = () => {
                                             onChange={(e) => setMaxHeadlines(parseInt(e.target.value) || 10)}
                                             min="5"
                                             max="50"
+                                            step="1"
                                         />
                                     </div>
                                 </div>

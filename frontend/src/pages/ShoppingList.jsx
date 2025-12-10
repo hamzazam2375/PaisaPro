@@ -245,6 +245,7 @@ const ShoppingList = () => {
                                             }}
                                             placeholder="Qty"
                                             min="1"
+                                            step="1"
                                             style={{
                                                 width: '80px',
                                                 color: '#fff',
